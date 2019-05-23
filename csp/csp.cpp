@@ -11,4 +11,7 @@ int main()
 
     out=CSPEncrypt::Base64Encode((BYTE*)data, sizeof(data));
     wprintf(out);
+    out = CSPEncrypt::Base64Encode((BYTE*)out, sizeof(out));
+    wprintf(out);
+    getchar();
 }

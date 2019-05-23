@@ -60,26 +60,45 @@ BYTE* CSPEncrypt::RsaDecrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //
-LPWSTR CSPEncrypt::Base64Encode(BYTE* in, DWORD inLen)
+LPWSTR  CSPEncrypt::Base64Encode(BYTE* in, DWORD inLen)
 {
-    DWORD  outLen;
-    LPWSTR out = NULL;
-
+    DWORD   outLen=0;
+    PWSTR   pOut=NULL;
     // calculate space for string
-    if (CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, NULL, &outLen)) {
-        out = (LPWSTR)malloc(outLen);
+    if (CryptBinaryToString(in, inLen, \
+            CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, NULL, &outLen)) 
+    {
+        pOut = (LPWSTR)malloc(outLen);
 
         // convert it
-        if (out != NULL) {
-            CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, out, &outLen);
+        if (pOut != NULL)
+        {
+            CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, pOut, &outLen);
         }
     }
-    return out;
+    return pOut;
 }
 
 //////////////////////////////////////////////////////////////////////////
 //
+LPWSTR  CSPEncrypt::Base64Decode(BYTE* in, DWORD inLen)
+{
+    DWORD   outLen=0;
+    PWSTR   pOut=NULL;
+    if (CryptStringToBinary((LPCWSTR)in, inLen, \
+            CRYPT_STRING_BASE64, NULL, &outLen, NULL, NULL)) 
+    {
+        pOut = (LPWSTR)malloc(outLen);
+        if (pOut != NULL) 
+        {
+            // decode base64
+            CryptStringToBinary((LPCWSTR)in, inLen, \
+                CRYPT_STRING_BASE64 , (BYTE*)pOut, &outLen, NULL, NULL);
+        }
+    }
 
+    return pOut;
+}
 
 
 // EOF

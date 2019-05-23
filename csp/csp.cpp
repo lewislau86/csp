@@ -6,5 +6,9 @@
 #include "CSPEncrypt.h"
 int main()
 {
-    printf("hello");
+    LPWSTR out;
+    static char data[] = "lewislau86";
+
+    out=CSPEncrypt::Base64Encode((BYTE*)data, sizeof(data));
+    wprintf(out);
 }

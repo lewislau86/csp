@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "CSPEncrypt.h"
 
+#pragma comment(lib,"Crypt32.lib")
+
 //////////////////////////////////////////////////////////////////////////
 //
 CSPEncrypt::CSPEncrypt()
@@ -58,19 +60,18 @@ BYTE* CSPEncrypt::RsaDecrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //
-LPVOID CSPEncrypt::Base64Encode(LPVOID in, DWORD inLen, DWORD flags)
+LPWSTR CSPEncrypt::Base64Encode(BYTE* in, DWORD inLen)
 {
     DWORD  outLen;
-    LPVOID out = NULL;
+    LPWSTR out = NULL;
 
     // calculate space for string
-    if (CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | flags, NULL, &outLen)) {
-        out = malloc(outLen);
+    if (CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, NULL, &outLen)) {
+        out = (LPWSTR)malloc(outLen);
 
         // convert it
         if (out != NULL) {
-            CryptBinaryToString(in, inLen,
-                CRYPT_STRING_BASE64 | flags, out, &outLen);
+            CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, out, &outLen);
         }
     }
     return out;

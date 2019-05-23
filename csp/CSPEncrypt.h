@@ -11,8 +11,8 @@ public:
     
     BYTE*   RsaEncrypt();
     BYTE*   RsaDecrypt();
-    LPVOID   Base64Encode(LPVOID in, DWORD inLen, DWORD flags);
-    DWORD   Base64Decode();
+    static  LPWSTR   Base64Encode(BYTE* in, DWORD inLen);
+    static  DWORD   Base64Decode();
 
 private:
 	HCRYPTPROV m_hProv;

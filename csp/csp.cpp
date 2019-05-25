@@ -9,6 +9,11 @@ int main()
     LPWSTR out;
     static char data[] = "lewislau86";
 
-    out=CSPEncrypt::Base64Encode((BYTE*)data, sizeof(data));
+    out=CSPEncrypt::getInstance()->Base64Encode((BYTE*)data, strlen(data));
     wprintf(out);
+    out =CSPEncrypt::getInstance()->Base64Decode((BYTE*)out, wcslen(out));
+    wprintf(out);
+
+    CSPEncrypt::getInstance()->AseEncrypt();
+    getchar();
 }

@@ -6,14 +6,27 @@
 #include "CSPEncrypt.h"
 int main()
 {
-    LPWSTR out;
+    char* out;
+    char buffer[1024] = { 0 };
     static char data[] = "lewislau86";
 
-    out=CSPEncrypt::getInstance()->Base64Encode((BYTE*)data, strlen(data));
-    wprintf(out);
-    out =CSPEncrypt::getInstance()->Base64Decode((BYTE*)out, wcslen(out));
-    wprintf(out);
 
-    CSPEncrypt::getInstance()->AseEncrypt();
+    printf("\nBase65 Encode\r\n");
+    out=CSPEncrypt::getInstance()->base64Encode(data, strlen(data));
+ 
+    strcpy_s(buffer, out);
+    printf(buffer);
+
+    printf("\nBase65 Decode\r\n");
+    out =CSPEncrypt::getInstance()->base64Decode(buffer, strlen(out));
+    strcpy_s(buffer, out);
+    printf(buffer);
+
+    printf("\nAse Encrypt\r\n");
+    out = CSPEncrypt::getInstance()->AesEncrypt(buffer,strlen(buffer));
+
+    CSPEncrypt::getInstance()->AesEncrypt(out, strlen(buffer));
     getchar();
+
+
 }

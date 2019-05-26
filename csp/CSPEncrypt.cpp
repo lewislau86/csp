@@ -3,7 +3,10 @@
 #include <wincrypt.h>
 #include <stdio.h>
 #include "CSPEncrypt.h"
-
+#include <winnt.h>
+#include <stdlib.h> //rand srand
+#include <stdio.h>
+#include <time.h>
 #pragma comment(lib,"Crypt32.lib")
 
 
@@ -20,23 +23,18 @@ CSPEncrypt* CSPEncrypt::getInstance()
 }
 //////////////////////////////////////////////////////////////////////////
 //
-CSPEncrypt::CSPEncrypt()
+std::string CSPEncrypt::RandString(int len)
 {
-	DWORD dwStatus = 0;
-	m_hProv     = NULL;
-    m_pOut      = NULL;
-    WCHAR info[] = L"Microsoft Enhanced RSA and AES Cryptographic Provider";
-	if (!CryptAcquireContext(&m_hProv, NULL, info, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) 
-	{
-		dwStatus = GetLastError();
-		printf("CryptAcquireContext failed: %x\n", dwStatus);
-		CryptReleaseContext(m_hProv, 0);
-		system("pause");
-	}
-    CreateHash();
-    
-}
+    std::string buffer;
+    char a[] = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    int n = sizeof(a);
 
+    srand((unsigned int)time(NULL)); //随机种子
+    for (int i = 0; i < len; i++) {
+        buffer += a[rand()%n];
+    }
+    return buffer;
+}
 //////////////////////////////////////////////////////////////////////////
 //
 PVOID CSPEncrypt::SafeMalloc(size_t size)
@@ -50,54 +48,126 @@ PVOID CSPEncrypt::SafeMalloc(size_t size)
     return m_pOut;
 }
 
+//////////////////////////////////////////////////////////////////////////
+VOID CSPEncrypt::SafeFree()
+{
+    if (NULL != m_pOut) {
+        free(m_pOut);
+        m_pOut = NULL;
+    }    
+}
+//////////////////////////////////////////////////////////////////////////
+//
+DWORD CSPEncrypt::GenerateAesKey(const char* keyword)
+{
+    DWORD       dwStatus = 0;
+    if (NULL == keyword)
+        return ERROR_INVALID_PARAMETER;
+
+    CreateHash(keyword);
+    if (!CryptDeriveKey(m_hAesProv, CALG_AES_128, m_hHash, 0, &m_hAesKey)) {
+        dwStatus = GetLastError();
+
+        printf("CryptDeriveKey failed: %x\n", dwStatus);
+        CryptReleaseContext(m_hAesProv, 0);
+    }
+
+    return dwStatus;
+}
+//////////////////////////////////////////////////////////////////////////
+// 
+BOOL CSPEncrypt::InitAesEncrypt()
+{
+    DWORD       dwStatus = 0;
+    WCHAR info[] = L"Microsoft Enhanced RSA and AES Cryptographic Provider";
+    if (!CryptAcquireContext(&m_hAesProv, NULL, info, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+    {
+        dwStatus = GetLastError();
+        printf("CryptAcquireContext failed: %x\n", dwStatus);
+        CryptReleaseContext(m_hAesProv, 0);
+        return FALSE;
+    }
+
+
+    m_cRandBuf = RandString(KEY_LEN);
+    GenerateAesKey(m_cRandBuf.c_str());
+    return FALSE;
+}
+//////////////////////////////////////////////////////////////////////////
+//
+BOOL CSPEncrypt::InitCSPEncrypt()
+{
+    return InitAesEncrypt();
+
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+CSPEncrypt::CSPEncrypt()
+{
+	DWORD dwStatus = 0;
+	m_hAesProv     = NULL;
+    m_pOut      = NULL;
+    InitCSPEncrypt();
+
+ 
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //
 CSPEncrypt::~CSPEncrypt()
 {
-    if (NULL != m_pOut)
-        free(m_pOut);
-
-    if (NULL != m_hProv && FALSE == CryptReleaseContext(m_hProv, 0))
+    SafeFree();
+    if (NULL != m_hAesProv && FALSE == CryptReleaseContext(m_hAesProv, 0))
         OutputDebugString(TEXT("Construction Error!\r\n"));
 }
 
 //////////////////////////////////////////////////////////////////////////
 //
-DWORD CSPEncrypt::CreateHash()
+DWORD CSPEncrypt::CreateHash(const char* keyword)
 {
     DWORD dwStatus=0;
+    if (NULL == keyword)
+        return ERROR_INVALID_PARAMETER;
 
-    if (!CryptCreateHash(m_hProv, CALG_SHA_256, 0, 0, &m_hHash)) {
+    if (!CryptCreateHash(m_hAesProv, CALG_SHA_256, 0, 0, &m_hHash)) {
         dwStatus = GetLastError();
         printf("CryptCreateHash failed: %x\n", dwStatus);
-        CryptReleaseContext(m_hProv, 0);
+        CryptReleaseContext(m_hAesProv, 0);
     }
+    //對密鑰進行HASH計算
+    if (!CryptHashData(m_hHash, (BYTE*)keyword, (DWORD)strlen("keyword"), 0))
+    {
+        dwStatus = GetLastError();
+        printf("CryptHashData failed: %x\n", dwStatus);
+        CryptReleaseContext(m_hAesProv, 0);
+    }
+
     return dwStatus;
 }
 //////////////////////////////////////////////////////////////////////////
 //
-BYTE* CSPEncrypt::AseEncrypt()
+char* CSPEncrypt::AesEncrypt( char* in, size_t inLen)
 {
-    HCRYPTKEY   hKey;
-    DWORD       dwStatus=0;
-    DWORD       dwOutLen=0;
+    DWORD       dwDataLen= (DWORD)(inLen+1);
     BOOL        isFinal = FALSE;
-    BYTE *pData;
-    pData = (BYTE*)SafeMalloc(256);
-    memcpy(pData, "lewislau", sizeof("lewislau"));
-    if (!CryptDeriveKey(m_hProv, CALG_AES_128, m_hHash, 0, &hKey)) {
-        dwStatus = GetLastError();
-        printf("CryptDeriveKey failed: %x\n", dwStatus);
-        CryptReleaseContext(m_hProv, 0);
+    DWORD       dwBufLen = 1024;
+    DWORD       dwStatus = 0;
+    char    pData[1024];
+
+    if (NULL == in)
         return NULL;
-    }
-    if (!CryptEncrypt(hKey, NULL, TRUE, 0, pData, &dwOutLen, 256))
+
+    strcpy_s(pData,in);
+
+    if (!CryptEncrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)pData, &dwDataLen, dwBufLen))
     {
         printf("[-] CryptEncrypt failed\n");
     }
-
-    if (!CryptDecrypt(hKey, NULL, TRUE, 0, pData, &dwOutLen)) {
+    //printf((char*)pData);
+    //GenerateAesKey(m_cRandBuf.c_str());
+    if (!CryptDecrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)pData, &dwDataLen)) {
         printf("[-] CryptEncrypt failed\n");
     }
     printf((char*)pData);
@@ -106,8 +176,18 @@ BYTE* CSPEncrypt::AseEncrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //
-BYTE* CSPEncrypt::AesDecrypt()
+BYTE* CSPEncrypt::AesDecrypt(char* in, size_t inLen)
 {
+    char    pData[1024];
+    DWORD       dwDataLen = (DWORD)(inLen + 1);
+
+    if (NULL == in)
+        return NULL;
+
+    if (!CryptDecrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)pData, &dwDataLen)) {
+        printf("[-] CryptEncrypt failed\n");
+    }
+    printf((char*)pData);
     return NULL;
 }
 
@@ -179,58 +259,51 @@ BYTE* CSPEncrypt::RsaDecrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //  Base64 Encode 
-LPWSTR  CSPEncrypt::Base64Encode(BYTE* in, DWORD inLen )
+char*  CSPEncrypt::base64Encode(char* in, size_t inLen )
 {
     DWORD   outLen=0;
-    // save tmp
-    BYTE*   bufInTmp = (BYTE*)malloc(inLen);
-    if (NULL!= bufInTmp)
-        memcpy(bufInTmp, in, inLen);
+
+    if (NULL == in)
+        return NULL;
+
     // calculate space for string
-    if (CryptBinaryToString(bufInTmp, inLen, \
-            CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, NULL, &outLen)) 
+    if (CryptBinaryToStringA((BYTE*)in, (DWORD)inLen, \
+            CRYPT_STRING_BASE64 , NULL, &outLen)) 
     {
-        m_pOut = (LPWSTR)SafeMalloc(outLen*sizeof(TCHAR));
+        m_pOut = (char*)SafeMalloc(outLen);
         // convert it
         if (m_pOut != NULL)
         {
-            CryptBinaryToString(in, inLen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, (LPWSTR)m_pOut, &outLen);
+            CryptBinaryToStringA((BYTE*)in, (DWORD)inLen, \
+                CRYPT_STRING_BASE64 , (char*)m_pOut, &outLen);
         }
     }
-    if (NULL != bufInTmp)
-        free(bufInTmp);
 
-    return (LPWSTR)m_pOut;
+    return (char*)m_pOut;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Base64Decode
-LPWSTR  CSPEncrypt::Base64Decode(LPVOID in, DWORD inLen)
+char*  CSPEncrypt::base64Decode(char* in, size_t inLen)
 {
     DWORD   outLen=0;
-    // save tmp
-    LPVOID   bufInTmp = (LPVOID)malloc(inLen*sizeof(TCHAR));
-    if (NULL != bufInTmp)
-    {
-        memset(bufInTmp, 0, inLen * sizeof(TCHAR));
-        memcpy(bufInTmp, in, inLen * sizeof(TCHAR));
 
-    }
+    if (NULL == in)
+        return NULL;
 
-    if (CryptStringToBinary((LPCWSTR)bufInTmp, inLen, \
-            CRYPT_STRING_BASE64, NULL, &outLen, NULL, NULL)) 
+    if (CryptStringToBinaryA((LPCSTR)in, (DWORD)inLen, \
+            CRYPT_STRING_BASE64 , NULL, &outLen, NULL, NULL))
     {
         m_pOut = (LPWSTR)SafeMalloc(outLen*sizeof(TCHAR));
+        outLen *= sizeof(TCHAR);
         if (m_pOut != NULL)
         {
             // decode base64
-            CryptStringToBinary((LPCWSTR)bufInTmp, inLen, \
-                CRYPT_STRING_BASE64 , (BYTE*)m_pOut, &outLen, NULL, NULL);
+            CryptStringToBinaryA((LPCSTR)in, (DWORD)inLen, \
+                CRYPT_STRING_BASE64, (BYTE*)m_pOut, &outLen, NULL, NULL);
         }
     }
-    if (NULL != bufInTmp)
-        free(bufInTmp);
-    return (LPWSTR)m_pOut;
+    return (char*)m_pOut;
 }
 
 

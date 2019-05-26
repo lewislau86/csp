@@ -39,21 +39,21 @@ std::string CSPEncrypt::RandString(int len)
 //
 PVOID CSPEncrypt::SafeMalloc(size_t size)
 {
-    if (NULL != m_pOut) {
-        free(m_pOut);
-        m_pOut = NULL;
+    if (NULL != m_pOutBuffer) {
+        free(m_pOutBuffer);
+        m_pOutBuffer = NULL;
     }
-    m_pOut = (PVOID)malloc(size);
-    memset(m_pOut, 0, size);
-    return m_pOut;
+    m_pOutBuffer = (PVOID)malloc(size);
+    memset(m_pOutBuffer, 0, size);
+    return m_pOutBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
 VOID CSPEncrypt::SafeFree()
 {
-    if (NULL != m_pOut) {
-        free(m_pOut);
-        m_pOut = NULL;
+    if (NULL != m_pOutBuffer) {
+        free(m_pOutBuffer);
+        m_pOutBuffer = NULL;
     }    
 }
 //////////////////////////////////////////////////////////////////////////
@@ -107,7 +107,7 @@ CSPEncrypt::CSPEncrypt()
 {
 	DWORD dwStatus = 0;
 	m_hAesProv     = NULL;
-    m_pOut      = NULL;
+    m_pOutBuffer      = NULL;
     InitCSPEncrypt();
 
  
@@ -147,48 +147,50 @@ DWORD CSPEncrypt::CreateHash(const char* keyword)
     return dwStatus;
 }
 //////////////////////////////////////////////////////////////////////////
-//
+// 这里有个坑缓冲区大小的dwBufferLen
+// 一般来说AES算法密文大小和字符集大小差不多一直，但是不知道为啥这里会多一点点。
 char* CSPEncrypt::AesEncrypt( char* in, size_t inLen)
 {
     DWORD       dwDataLen= (DWORD)(inLen+1);
     BOOL        isFinal = FALSE;
-    DWORD       dwBufLen = 1024;
+    DWORD       dwBufLen = inLen*2;
     DWORD       dwStatus = 0;
-    char    pData[1024];
+    
 
-    if (NULL == in)
-        return NULL;
+    m_pOutBuffer = (char*)SafeMalloc(dwBufLen);
 
-    strcpy_s(pData,in);
+    strcpy_s((char*)m_pOutBuffer, dwDataLen,in);
 
-    if (!CryptEncrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)pData, &dwDataLen, dwBufLen))
+    if (!CryptEncrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)m_pOutBuffer, &dwDataLen, dwBufLen))
     {
         printf("[-] CryptEncrypt failed\n");
+        return NULL;
     }
-    //printf((char*)pData);
-    //GenerateAesKey(m_cRandBuf.c_str());
-    if (!CryptDecrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)pData, &dwDataLen)) {
+
+    /*
+    if (!CryptDecrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)m_pOut, &dwDataLen)) {
         printf("[-] CryptEncrypt failed\n");
     }
-    printf((char*)pData);
-    return NULL;
+    printf((char*)m_pOut);
+    */
+    m_dwOutBufferSize = dwDataLen;
+    return (char*)m_pOutBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
 //
-BYTE* CSPEncrypt::AesDecrypt(char* in, size_t inLen)
+char* CSPEncrypt::AesDecrypt(char* in, size_t inLen)
 {
-    char    pData[1024];
-    DWORD       dwDataLen = (DWORD)(inLen + 1);
+    DWORD       dwDataLen = (DWORD)(inLen);
 
     if (NULL == in)
         return NULL;
 
-    if (!CryptDecrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)pData, &dwDataLen)) {
+    if (!CryptDecrypt(m_hAesKey, NULL, TRUE, 0, (BYTE*)m_pOutBuffer, &dwDataLen)) {
         printf("[-] CryptEncrypt failed\n");
     }
-    printf((char*)pData);
-    return NULL;
+    m_dwOutBufferSize = dwDataLen;
+    return (char*)m_pOutBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -270,16 +272,17 @@ char*  CSPEncrypt::base64Encode(char* in, size_t inLen )
     if (CryptBinaryToStringA((BYTE*)in, (DWORD)inLen, \
             CRYPT_STRING_BASE64 , NULL, &outLen)) 
     {
-        m_pOut = (char*)SafeMalloc(outLen);
+        m_pOutBuffer = (char*)SafeMalloc(outLen);
         // convert it
-        if (m_pOut != NULL)
+        if (m_pOutBuffer != NULL)
         {
             CryptBinaryToStringA((BYTE*)in, (DWORD)inLen, \
-                CRYPT_STRING_BASE64 , (char*)m_pOut, &outLen);
+                CRYPT_STRING_BASE64 , (char*)m_pOutBuffer, &outLen);
         }
     }
 
-    return (char*)m_pOut;
+    m_dwOutBufferSize = outLen;
+    return (char*)m_pOutBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -294,18 +297,26 @@ char*  CSPEncrypt::base64Decode(char* in, size_t inLen)
     if (CryptStringToBinaryA((LPCSTR)in, (DWORD)inLen, \
             CRYPT_STRING_BASE64 , NULL, &outLen, NULL, NULL))
     {
-        m_pOut = (LPWSTR)SafeMalloc(outLen*sizeof(TCHAR));
+        m_pOutBuffer = (LPWSTR)SafeMalloc(outLen*sizeof(TCHAR));
         outLen *= sizeof(TCHAR);
-        if (m_pOut != NULL)
+        if (m_pOutBuffer != NULL)
         {
             // decode base64
             CryptStringToBinaryA((LPCSTR)in, (DWORD)inLen, \
-                CRYPT_STRING_BASE64, (BYTE*)m_pOut, &outLen, NULL, NULL);
+                CRYPT_STRING_BASE64, (BYTE*)m_pOutBuffer, &outLen, NULL, NULL);
         }
     }
-    return (char*)m_pOut;
+    m_dwOutBufferSize = outLen;
+    return (char*)m_pOutBuffer;
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+//
+DWORD CSPEncrypt::GetBufferSize()
+{
+    return m_dwOutBufferSize;
+}
 
 // EOF
 //////////////////////////////////////////////////////////////////////////

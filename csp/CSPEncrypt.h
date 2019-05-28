@@ -17,7 +17,7 @@ public:
     char*   base64Decode(char* in, size_t inLen);
     std::string RandString(int len);
     DWORD   GetBufferSize();
-
+    PVOID   GetBufferPtr();
 private:
     PVOID   SafeMalloc(size_t size);
     DWORD   CreateHash(const char* keyword);

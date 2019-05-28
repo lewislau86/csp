@@ -7,6 +7,10 @@
 #include <stdlib.h> //rand srand
 #include <stdio.h>
 #include <time.h>
+#include <shlwapi.h>
+#include "rsa.h"
+
+#pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib,"Crypt32.lib")
 
 
@@ -79,7 +83,7 @@ DWORD CSPEncrypt::GenerateAesKey(const char* keyword)
 BOOL CSPEncrypt::InitAesEncrypt()
 {
     DWORD       dwStatus = 0;
-    WCHAR info[] = L"Microsoft Enhanced RSA and AES Cryptographic Provider";
+    char info[] = "Microsoft Enhanced RSA and AES Cryptographic Provider";
     if (!CryptAcquireContext(&m_hAesProv, NULL, info, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
     {
         dwStatus = GetLastError();
@@ -317,6 +321,116 @@ DWORD CSPEncrypt::GetBufferSize()
 {
     return m_dwOutBufferSize;
 }
+
+//////////////////////////////////////////////////////////////////////////
+//
+PVOID CSPEncrypt::GetBufferPtr()
+{
+    return m_pOutBuffer;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+void xstrerror(const char *fmt, ...)
+{
+    char    *error = NULL;
+    va_list arglist;
+    char    buffer[2048];
+    DWORD   dwError = GetLastError();
+
+    va_start(arglist, fmt);
+    wvnsprintf(buffer, sizeof(buffer) - 1, fmt, arglist);
+    va_end(arglist);
+
+    if (FormatMessage(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+        NULL, dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&error, 0, NULL))
+    {
+        printf("  [ %s : %s\n", buffer, error);
+        LocalFree(error);
+    }
+    else {
+        printf("  [ %s : %ld\n", buffer, dwError);
+    } 
+}
+
+//////////////////////////////////////////////////////////////////////////
+// generate RSA key pair
+int genkey( const char *pubkey,
+    const char *privkey,
+    int bits)
+{
+    int     ok = 1;
+    RSA_CTX *rsa;
+
+    rsa = RSA_open();
+
+    if (rsa != NULL) {
+        if (RSA_genkey(rsa, bits)) {
+            printf("  [ Saving public key to %s...\n", pubkey);
+            ok = RSA_write_key(rsa, pubkey, RSA_PUBLIC_KEY);
+            printf("  [ Saving private key to %s...\n", privkey);
+            ok &= RSA_write_key(rsa, privkey, RSA_PRIVATE_KEY);
+        }
+        else xstrerror("RSA_genkey()");
+        RSA_close(rsa);
+    }
+    return ok;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// verify a signature using RSA public key stored in PEM format
+int verifyfile(
+    const char *pubkey,
+    const char *file,
+    const char *signature)
+{
+    int ok = 0;
+    RSA_CTX* ctx = RSA_open();
+
+    if (ctx != NULL) {
+        printf("  [ Reading public key from %s...\n", pubkey);
+        if (RSA_read_key(ctx, pubkey, RSA_PUBLIC_KEY)) {
+            printf("  [ Reading signature for %s from %s...\n",
+                file, signature);
+
+            ok = RSA_verify_file(ctx, file, signature);
+        }
+        else xstrerror("RSA_read_key()");
+        RSA_close(ctx);
+    }
+    return ok;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// sign a file using RSA private key stored in PEM format
+ 
+int signfile(
+    const char *privkey,
+    const char *file,
+    const char *signature)
+{
+    int ok = 0;
+    RSA_CTX* rsa = RSA_open();
+
+    if (rsa != NULL) {
+        printf("\n  [ Reading private key from %s...", privkey);
+        if (RSA_read_key(rsa, privkey, RSA_PRIVATE_KEY)) {
+            printf("\n  [ Writing signature for %s to %s...",
+                file, signature);
+
+            ok = RSA_sign_file(rsa, file, signature);
+        }
+        else xstrerror("RSA_read_key()");
+        RSA_close(rsa);
+    }
+    return ok;
+}
+
+
 
 // EOF
 //////////////////////////////////////////////////////////////////////////

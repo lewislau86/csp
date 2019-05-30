@@ -119,11 +119,8 @@ int RSA_genkey(RSA_CTX* ctx, int keyLen) {
     return ok;
 }
 
-/**
- *
- * convert string to binary
- *
- */
+//////////////////////////////////////////////////////////////////////////
+// convert string to binary
 void* Base642Bin(
     const char *in,
     int        inLen,
@@ -175,8 +172,8 @@ const char* Bin2Base64(LPVOID in, DWORD inLen, DWORD flags)
 // ifile   : name of file to write PEM encoded key
 // pemType : type of key being saved
 // RSA_CTX     : RSA_CTX object with public and private keys
-int PEM_write_file(int pemType,
-    const char* ofile, void* data, int dataLen)
+int PEM_write_file(int pemType, const char* ofile, \
+                   void* data, int dataLen)
 {
     const char *s = NULL, *e = NULL, *b64 = NULL;
     FILE       *out;
@@ -224,10 +221,8 @@ int PEM_write_file(int pemType,
 // ifile   : name of file to write PEM encoded key
 // pemType : type of key being saved
 // RSA_CTX : RSA_CTX object with public and private keys
-void* PEM_read_file(
-    int         pemType,
-    const char* ifile,
-    PDWORD      binLen)
+void* PEM_read_file( int pemType, \
+        const char* ifile, PDWORD binLen)
 {
     FILE        *in;
     struct stat st;
@@ -273,8 +268,7 @@ void* PEM_read_file(
 // ifile   : name of file to read PEM encoded key from
 // pemType : type of key being read
 // RSA_CTX : RSA_CTX object to hold keys
-int RSA_read_key(RSA_CTX* ctx,
-    const char* ifile, int pemType)
+int RSA_read_key(RSA_CTX* ctx, const char* ifile, int pemType)
 {
     int                         ok = 0;
     LPVOID                    derData, keyData;
@@ -347,8 +341,7 @@ int RSA_read_key(RSA_CTX* ctx,
 // ofile   : name of file to write PEM encoded key
 // pemType : type of key being saved
 // RSA_CTX : RSA_CTX object with public and private keys
-int RSA_write_key(RSA_CTX* ctx,
-    const char* ofile, int pemType)
+int RSA_write_key(RSA_CTX* ctx, const char* ofile, int pemType)
 {
     int      ok = 0;
     DWORD  pkiLen, derLen;
@@ -427,9 +420,7 @@ int RSA_write_key(RSA_CTX* ctx,
 //  calculate sha256 hash of file
 // ifile : contains data to generate hash for
 // RSA_CTX   : RSA_CTX object with HCRYPTHASH object
-int SHA256_hash(
-    RSA_CTX* ctx,
-    const char* ifile)
+int SHA256_hash(RSA_CTX* ctx, const char* ifile)
 {
     FILE *fd;
     BYTE buf[BUFSIZ];
@@ -469,10 +460,7 @@ int SHA256_hash(
 // sfile   : output file of RSA signature
 // ifile   : input file of data to generate signature for
 // RSA_CTX : RSA_CTX object with private key
-int RSA_sign_file(
-    RSA_CTX* ctx,
-    const char* ifile,
-    const char* sfile)
+int RSA_sign_file(RSA_CTX* ctx, const char* ifile, const char* sfile)
 {
     int      ok = 0;
     DWORD  sigLen = 0;
@@ -511,15 +499,11 @@ int RSA_sign_file(
     return ok;
 }
 
-/**
- *
- *         verify a signature using public key
- *
- * sfile   : file with signature
- * ifile   : file with data to verify signature for
- * RSA_CTX : RSA_CTX object with public key
- *
- */
+//////////////////////////////////////////////////////////////////////////
+// verify a signature using public key
+// sfile   : file with signature
+// ifile   : file with data to verify signature for
+// RSA_CTX : RSA_CTX object with public key
 int RSA_verify_file(
     RSA_CTX*    ctx,
     const char* ifile,
@@ -549,6 +533,191 @@ int RSA_verify_file(
     return ok;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Public Key Encrypt 
+int RSA_encrypt_file(RSA_CTX* ctx, const char* ifile, const char* sfile)
+{
+    int     ok = 0;
+    DWORD   dwBufLen = 0;
+    FILE    *in, *out;
+    void    *fileBuf = NULL;
+    struct  stat st;
+    BOOL    bStatus;
 
+
+    // get file size
+    stat(ifile, &st);
+    if (st.st_size == 0) {
+        return NULL;
+    }
+
+    // 1. try open file for signature 
+    fopen_s(&in, ifile, "wb");
+    fopen_s(&out, sfile, "wb");
+        
+    // read file
+    do 
+    {
+        if (NULL==out || NULL==in)
+            break;
+        
+        fileBuf = malloc(st.st_size + 1);
+        if (NULL == fileBuf)
+            break;
+     
+        dwBufLen = fread(fileBuf, 1, st.st_size, in);
+        bStatus = CryptEncrypt(ctx->pubkey, NULL, TRUE, \
+            0, (BYTE*)fileBuf, &dwBufLen, (DWORD)st.st_size + 1);
+        if (!bStatus)
+        {
+            printf("CryptEncrypt failed with error 0x%.8X\n", GetLastError());
+            break;
+        }
+        
+        dwBufLen = fwrite(fileBuf, 1, (size_t)dwBufLen, out);
+    } while (0);
+
+
+    if (NULL != fileBuf)
+        free(fileBuf);
+    fclose(out);
+    fclose(in);
+    return dwBufLen;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// Private Key Decrypt
+int RSA_decrypt_file(RSA_CTX* ctx, const char* ifile, const char* sfile)
+{
+    int     ok = 0;
+    DWORD   dwBufLen = 0;
+    FILE    *in, *out;
+    void    *fileBuf = NULL;
+    struct  stat st;
+    BOOL    bStatus;
+
+
+    // get file size
+    stat(ifile, &st);
+    if (st.st_size == 0) {
+        return NULL;
+    }
+
+    // 1. try open file for signature 
+    fopen_s(&out, sfile, "wb");
+    fopen_s(&in, ifile, "wb");
+    // read file
+    do
+    {
+        if (NULL == out)
+            break;
+
+        fileBuf = malloc(st.st_size + 1);
+        if (NULL == fileBuf)
+            break;
+
+        dwBufLen = fread(fileBuf, 1, st.st_size, in);
+        bStatus = CryptDecrypt(ctx->privkey, NULL, TRUE,\
+                                0,(BYTE*)fileBuf, &dwBufLen);
+        if (!bStatus)
+        {
+            printf("CryptDecrypt failed with error 0x%.8X\n", GetLastError());
+            break;
+        }
+
+        dwBufLen = fwrite(fileBuf, 1, (size_t)dwBufLen, out);
+    } while (0);
+
+
+    if (NULL != fileBuf)
+        free(fileBuf);
+    fclose(out);
+    fclose(in);
+    return dwBufLen;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//
+int RSA_encrypt(RSA_CTX* ctx, BYTE* inBuf, \
+            UINT inBufLen, BYTE* outBuf, UINT &outBufLen)
+{
+    PVOID buffer = NULL;
+    BOOL    bStatus;
+    DWORD  bufLen = inBufLen * 2;
+
+    do 
+    {
+        if (NULL == inBuf)
+            break;
+
+        buffer = malloc(bufLen);
+        if (NULL == buffer)
+            break;
+
+        memcpy(buffer, inBuf, inBufLen);
+
+        bStatus = CryptEncrypt(ctx->pubkey, NULL, TRUE, \
+            0, (BYTE*)buffer, &bufLen, inBufLen);
+        if (!bStatus)
+        {
+            printf("CryptEncrypt failed with error 0x%.8X\n", GetLastError());
+            break;
+        }
+        
+        outBuf = (BYTE*)malloc(bufLen);
+        if (NULL != outBuf)
+        {
+            memcpy(outBuf, buffer, bufLen);
+            outBufLen = bufLen;
+        }
+    } while (0);
+
+    if (NULL != buffer)
+        free(buffer);
+    return bufLen;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+int RSA_decrypt(RSA_CTX* ctx, BYTE* inBuf, \
+            UINT inBufLen, BYTE* outBuf, UINT &outBufLen)
+{
+    PVOID buffer = NULL;
+    BOOL    bStatus;
+    DWORD  bufLen = inBufLen * 2;
+
+    do
+    {
+        if (NULL == inBuf)
+            break;
+
+        buffer = malloc(bufLen);
+        if (NULL == buffer)
+            break;
+
+        memcpy(buffer, inBuf, inBufLen);
+
+        bStatus = CryptDecrypt(ctx->privkey, NULL, TRUE, \
+                0, (BYTE*)buffer, &bufLen);
+        if (!bStatus)
+        {
+            printf("CryptEncrypt failed with error 0x%.8X\n", GetLastError());
+            break;
+        }
+
+        outBuf = (BYTE*)malloc(bufLen);
+        if (NULL != outBuf)
+        {
+            memcpy(outBuf, buffer, bufLen);
+            outBufLen = bufLen;
+        }
+    } while (0);
+
+    if (NULL != buffer)
+        free(buffer);
+    return bufLen;
+}
 // EOF
 //////////////////////////////////////////////////////////////////////////

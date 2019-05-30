@@ -66,6 +66,14 @@ int RSA_write_key(RSA_CTX*, const char*, int);
 int RSA_verify_file(RSA_CTX*, const char*, const char*);
 int RSA_sign_file(RSA_CTX*, const char*, const char*);
 
+int RSA_encrypt_file(RSA_CTX* ctx, const char* ifile, const char* sfile);
+int RSA_decrypt_file(RSA_CTX* ctx, const char* ifile, const char* sfile);
+
+int RSA_encrypt(RSA_CTX* ctx, BYTE* inBuf,  \
+            UINT inBufLen, BYTE* outBuf, UINT &outBufLen);
+int RSA_decrypt(RSA_CTX* ctx, BYTE* inBuf,  \
+            UINT inBufLen, BYTE* outBuf, UINT &outBufLen);
+
 int SHA256_hash(RSA_CTX*, const char*);
 int PEM_write_file(int, const char*, void*, int);
 void* PEM_read_file(int, const char*, PDWORD);

@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <wincrypt.h>
 #include <stdio.h>
-#include "CSPEncrypt.h"
+#include "CSPMisc.h"
 #include <winnt.h>
 #include <stdlib.h> //rand srand
 #include <stdio.h>
@@ -16,18 +16,18 @@
 
 //////////////////////////////////////////////////////////////////////////
 //
-CSPEncrypt* CSPEncrypt::instance = NULL;
+CSPMisc* CSPMisc::instance = NULL;
 
-CSPEncrypt* CSPEncrypt::getInstance()
+CSPMisc* CSPMisc::getInstance()
 {
     if (instance == NULL) {
-        instance = new CSPEncrypt();
+        instance = new CSPMisc();
     }
     return instance;
 }
 //////////////////////////////////////////////////////////////////////////
 //
-std::string CSPEncrypt::RandString(int len)
+std::string CSPMisc::RandString(int len)
 {
     std::string buffer;
     char a[] = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -41,7 +41,7 @@ std::string CSPEncrypt::RandString(int len)
 }
 //////////////////////////////////////////////////////////////////////////
 //
-PVOID CSPEncrypt::SafeMalloc(size_t size)
+PVOID CSPMisc::SafeMalloc(size_t size)
 {
     if (NULL != m_pOutBuffer) {
         free(m_pOutBuffer);
@@ -53,7 +53,7 @@ PVOID CSPEncrypt::SafeMalloc(size_t size)
 }
 
 //////////////////////////////////////////////////////////////////////////
-VOID CSPEncrypt::SafeFree()
+VOID CSPMisc::SafeFree()
 {
     if (NULL != m_pOutBuffer) {
         free(m_pOutBuffer);
@@ -62,7 +62,7 @@ VOID CSPEncrypt::SafeFree()
 }
 //////////////////////////////////////////////////////////////////////////
 //
-DWORD CSPEncrypt::GenerateAesKey(const char* keyword)
+DWORD CSPMisc::GenerateAesKey(const char* keyword)
 {
     DWORD       dwStatus = 0;
     if (NULL == keyword)
@@ -80,7 +80,7 @@ DWORD CSPEncrypt::GenerateAesKey(const char* keyword)
 }
 //////////////////////////////////////////////////////////////////////////
 // 
-BOOL CSPEncrypt::InitAesEncrypt()
+BOOL CSPMisc::InitAesEncrypt()
 {
     DWORD       dwStatus = 0;
     char info[] = "Microsoft Enhanced RSA and AES Cryptographic Provider";
@@ -99,7 +99,7 @@ BOOL CSPEncrypt::InitAesEncrypt()
 }
 //////////////////////////////////////////////////////////////////////////
 //
-BOOL CSPEncrypt::InitCSPEncrypt()
+BOOL CSPMisc::InitCSPEncrypt()
 {
     return InitAesEncrypt();
 
@@ -107,7 +107,7 @@ BOOL CSPEncrypt::InitCSPEncrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //
-CSPEncrypt::CSPEncrypt()
+CSPMisc::CSPMisc()
 {
 	DWORD dwStatus = 0;
 	m_hAesProv     = NULL;
@@ -120,7 +120,7 @@ CSPEncrypt::CSPEncrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //
-CSPEncrypt::~CSPEncrypt()
+CSPMisc::~CSPMisc()
 {
     SafeFree();
     if (NULL != m_hAesProv && FALSE == CryptReleaseContext(m_hAesProv, 0))
@@ -129,7 +129,7 @@ CSPEncrypt::~CSPEncrypt()
 
 //////////////////////////////////////////////////////////////////////////
 //
-DWORD CSPEncrypt::CreateHash(const char* keyword)
+DWORD CSPMisc::CreateHash(const char* keyword)
 {
     DWORD dwStatus=0;
     if (NULL == keyword)
@@ -153,7 +153,7 @@ DWORD CSPEncrypt::CreateHash(const char* keyword)
 //////////////////////////////////////////////////////////////////////////
 // 这里有个坑缓冲区大小的dwBufferLen
 // 一般来说AES算法密文大小和字符集大小差不多一直，但是不知道为啥这里会多一点点。
-char* CSPEncrypt::AesEncrypt( char* in, size_t inLen)
+char* CSPMisc::AesEncrypt( char* in, size_t inLen)
 {
     DWORD       dwDataLen= (DWORD)(inLen+1);
     BOOL        isFinal = FALSE;
@@ -183,7 +183,7 @@ char* CSPEncrypt::AesEncrypt( char* in, size_t inLen)
 
 //////////////////////////////////////////////////////////////////////////
 //
-char* CSPEncrypt::AesDecrypt(char* in, size_t inLen)
+char* CSPMisc::AesDecrypt(char* in, size_t inLen)
 {
     DWORD       dwDataLen = (DWORD)(inLen);
 
@@ -198,74 +198,8 @@ char* CSPEncrypt::AesDecrypt(char* in, size_t inLen)
 }
 
 //////////////////////////////////////////////////////////////////////////
-//
-BYTE* CSPEncrypt::RsaEncrypt()
-{
-    HCRYPTPROV  hProv = NULL;
-    HCRYPTKEY   hRSAKey = NULL;
-/*
-    // Acquire context for RSA key
-    fResult = CryptAcquireContext(&hProv,
-        lpszContainerName,
-        MS_DEF_PROV,
-        PROV_RSA_FULL,
-        dwFlags);
-
-    if (!fResult) {
-        if (GetLastError() == NTE_BAD_KEYSET) {
-            // Create a key container if one does not exist.
-            fResult = CryptAcquireContext(&hProv,
-                lpszContainerName,
-                MS_DEF_PROV,
-                PROV_RSA_FULL,
-                CRYPT_NEWKEYSET | dwFlags);
-
-            if (!fResult) {
-                MyPrintf(_T("CryptAcquireContext (2) failed with %X\n"), GetLastError());
-                __leave;
-            }
-        }
-        else {
-            MyPrintf(_T("CryptAcquireContext (1) failed with %X\n"), GetLastError());
-            __leave;
-        }
-    }
-
-    // Get the RSA key handle
-    fResult = CryptGetUserKey(hProv, AT_KEYEXCHANGE, &hRSAKey);
-
-    if (!fResult) {
-        if (GetLastError() == NTE_NO_KEY) {
-            // Create a key if one does not exist.
-            fResult = CryptGenKey(hProv,
-                AT_KEYEXCHANGE,
-                CRYPT_EXPORTABLE,
-                &hRSAKey);
-
-            if (!fResult) {
-                MyPrintf(_T("CryptGenKey failed with %X\n"), GetLastError());
-                __leave;
-            }
-        }
-        else {
-            MyPrintf(_T("CryptGetUserKey failed with %X\n"), GetLastError());
-            __leave;
-        }
-    }
-*/
-    return NULL;
-}
-
-//////////////////////////////////////////////////////////////////////////
-//
-BYTE* CSPEncrypt::RsaDecrypt()
-{
-    return NULL;
-}
-
-//////////////////////////////////////////////////////////////////////////
 //  Base64 Encode 
-char*  CSPEncrypt::base64Encode(char* in, size_t inLen )
+char*  CSPMisc::base64Encode(char* in, size_t inLen )
 {
     DWORD   outLen=0;
 
@@ -291,7 +225,7 @@ char*  CSPEncrypt::base64Encode(char* in, size_t inLen )
 
 //////////////////////////////////////////////////////////////////////////
 // Base64Decode
-char*  CSPEncrypt::base64Decode(char* in, size_t inLen)
+char*  CSPMisc::base64Decode(char* in, size_t inLen)
 {
     DWORD   outLen=0;
 
@@ -317,14 +251,14 @@ char*  CSPEncrypt::base64Decode(char* in, size_t inLen)
 
 //////////////////////////////////////////////////////////////////////////
 //
-DWORD CSPEncrypt::GetBufferSize()
+DWORD CSPMisc::GetBufferSize()
 {
     return m_dwOutBufferSize;
 }
 
 //////////////////////////////////////////////////////////////////////////
 //
-PVOID CSPEncrypt::GetBufferPtr()
+PVOID CSPMisc::GetBufferPtr()
 {
     return m_pOutBuffer;
 }
@@ -430,6 +364,55 @@ int signfile(
     return ok;
 }
 
+//////////////////////////////////////////////////////////////////////////
+//
+BYTE* CSPRsa::RsaEncrypt()
+{
+
+    return NULL;
+}
+//////////////////////////////////////////////////////////////////////////
+//
+BOOL CSPRsa::RsaInitKey(const char* strPath)
+{
+
+    BOOL    bRet = FALSE;
+    do 
+    {
+        if (NULL==strPath)
+        {
+        }
+        else
+        {
+            RsaLoadKey(strPath);
+        } 
+
+    } while (0);
+    
+    return bRet;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+BOOL CSPRsa::RsaLoadKey(const char* strPath)
+{
+    char    path[MAX_PATH] = { 0 };
+    int     inBufLen = 0;
+    do 
+    {
+        inBufLen = strlen(strPath);
+        if (inBufLen == 0 || inBufLen > MAX_PATH)
+            break;
+    } while (0);
+    return FALSE;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+BYTE* CSPRsa::RsaDecrypt()
+{
+    return NULL;
+}
 
 
 // EOF

@@ -155,12 +155,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CSPEncrypt.h" />
+    <ClInclude Include="CSPMisc.h" />
     <ClInclude Include="rsa.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CSP.cpp" />
-    <ClCompile Include="CSPEncrypt.cpp" />
+    <ClCompile Include="CSPMisc.cpp" />
     <ClCompile Include="rsa.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

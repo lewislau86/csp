@@ -3,14 +3,14 @@
 #include <stdio.h>
 #include <windows.h>
 #include <wincrypt.h>
-#include "CSPEncrypt.h"
+#include "CSPMisc.h"
 int main()
 {
     char* out;
     size_t  len;
     char buffer[1024] = { 0 };
     static char data[] = "lewislau86";
-    CSPEncrypt* cspPtr = CSPEncrypt::getInstance();
+    CSPMisc* cspPtr = CSPMisc::getInstance();
 
     printf("\nBase65 Encode\r\n");
     out= cspPtr->base64Encode(data, strlen(data));
@@ -24,10 +24,10 @@ int main()
     printf(buffer);
 
     printf("\nAse Encrypt\r\n");
-    out = CSPEncrypt::getInstance()->AesEncrypt(buffer,strlen(buffer));
+    out = CSPMisc::getInstance()->AesEncrypt(buffer,strlen(buffer));
     len = cspPtr->GetBufferSize();
     memcpy(buffer, out, len);
-    out = CSPEncrypt::getInstance()->AesDecrypt(buffer, len);
+    out = CSPMisc::getInstance()->AesDecrypt(buffer, len);
     strcpy_s(buffer, out);
     printf(buffer);
     getchar();

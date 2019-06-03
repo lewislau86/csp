@@ -18,21 +18,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CSPEncrypt.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="rsa.h">
       <Filter>RSA</Filter>
     </ClInclude>
+    <ClInclude Include="CSPMisc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CSPEncrypt.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="rsa.cpp">
       <Filter>RSA</Filter>
     </ClCompile>
     <ClCompile Include="CSP.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CSPMisc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

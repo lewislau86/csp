@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "..\CSP\CSPEncrypt.h"
+#include "..\CSP\CSPMisc.h"
 
 TEST(TestCaseName, TestName) {
 

@@ -3,21 +3,20 @@
 #include <iostream>
 #define KEY_LEN 16
 #define AES_BLOCK 1024    
-class CSPEncrypt
+class CSPMisc
 {
 public:
-	CSPEncrypt();
-	~CSPEncrypt();
-    // ASE
+	CSPMisc();
+	~CSPMisc();
+    // AES
     char*   AesEncrypt(char* in, size_t inLen);
     char*   AesDecrypt(char* in, size_t inLen);
-    BYTE*   RsaEncrypt();
-    BYTE*   RsaDecrypt();
     char*   base64Encode(char* in, size_t inLen);
     char*   base64Decode(char* in, size_t inLen);
     std::string RandString(int len);
     DWORD   GetBufferSize();
     PVOID   GetBufferPtr();
+
 private:
     PVOID   SafeMalloc(size_t size);
     DWORD   CreateHash(const char* keyword);
@@ -36,7 +35,20 @@ private:
 
 // Singleton
 private:
-    static CSPEncrypt* instance;
+    static CSPMisc* instance;
 public:
-    static CSPEncrypt* getInstance();
+    static CSPMisc* getInstance();
+};
+
+
+class CSPRsa
+{
+public:
+    BOOL    RsaInitKey(const char* strPath);
+    BOOL    RsaLoadKey(const char* strPath);
+    BOOL    RsaGenerateKey();
+    BYTE*   RsaEncrypt();
+    BYTE*   RsaDecrypt();
+    BOOL    RsaSignFile();
+    BOOL    RsaVerifyFile();
 };

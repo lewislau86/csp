@@ -159,7 +159,7 @@
     <ClInclude Include="rsa.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="csp.cpp" />
+    <ClCompile Include="CSP.cpp" />
     <ClCompile Include="CSPEncrypt.cpp" />
     <ClCompile Include="rsa.cpp" />
   </ItemGroup>

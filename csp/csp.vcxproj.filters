@@ -26,14 +26,14 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="csp.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="CSPEncrypt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="rsa.cpp">
       <Filter>RSA</Filter>
+    </ClCompile>
+    <ClCompile Include="CSP.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
